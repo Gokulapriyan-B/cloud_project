@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      initContainers:
+      - name: install-sonar-scanner
+        image: alpine:latest
+        command: ['sh', '-c']
+        args:
+        - |
+          echo "=== Installing sonar-scanner ==="
+          apk add --no-cache wget unzip
+          cd /tmp
+          wget -q https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-6.2.1.4610-linux-x64.zip
+          unzip -q sonar-scanner-cli-6.2.1.4610-linux-x64.zip
+          mv sonar-scanner-6.2.1.4610-linux-x64/* /scanner/
+          chmod -R 755 /scanner
+          echo "=== Installation complete ==="
+          ls -la /scanner/bin/
+        volumeMounts:
+        - name: sonar-tools
+          mountPath: /scanner
+      containers:
+      - name: jenkins
+        image: jenkins/jenkins:lts
+        ports:
+        - containerPort: 8080
+        - containerPort: 50000
+        volumeMounts:
+        - name: jenkins-home
+          mountPath: /var/jenkins_home
+        - name: sonar-tools
+          mountPath: /opt/sonar-scanner
+      volumes:
+      - name: jenkins-home
+        emptyDir: {}
+      - name: sonar-tools
+        emptyDir: {}
